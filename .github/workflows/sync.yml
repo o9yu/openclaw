@@ -5,10 +5,6 @@ on:
     - cron: '0 0 * * *' # 매일 오전 9시(KST)
   workflow_dispatch:
 
-permissions:
-  contents: write
-  workflows: write
-
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -17,6 +13,7 @@ jobs:
       - name: Checkout fork (main)
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.PAT_TOKEN }}
           fetch-depth: 0
           ref: main
 
