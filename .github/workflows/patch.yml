@@ -1,0 +1,55 @@
+name: OpenClaw Patch
+
+on:
+  workflow_run:
+    workflows: ["OpenClaw Sync"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  patch-urls:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout fork (main)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Patch hardcoded URLs in TypeScript source
+        run: |
+          # 1. Ollama 하드코딩 패치
+          for file in src/agents/ollama-stream.ts src/commands/onboard-custom.ts; do
+            [ -f "$file" ] || continue
+            sed -i 's/127\.0\.0\.1:11434/ollama:11434/g' "$file"
+            sed -i 's/localhost:11434/ollama:11434/g' "$file"
+          done
+
+          # 2. vLLM 하드코딩 패치
+          for file in src/agents/models-config.providers.ts src/commands/vllm-setup.ts; do
+            [ -f "$file" ] || continue
+            sed -i 's/127\.0\.0\.1:8000/vllm:8000/g' "$file"
+            sed -i 's/localhost:8000/vllm:8000/g' "$file"
+          done
+
+          # 3. LiteLLM 하드코딩 패치
+          for file in src/commands/onboard-auth.config-litellm.ts; do
+            [ -f "$file" ] || continue
+            sed -i 's/127\.0\.0\.1:4000/litellm:4000/g' "$file"
+            sed -i 's/localhost:4000/litellm:4000/g' "$file"
+          done
+
+      - name: Check for changes
+        id: git-check
+        run: |
+          git diff --quiet || echo "changes=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and Push changes
+        if: steps.git-check.outputs.changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u
+          git commit -m "chore: auto-patch hardcoded local URLs (Ollama, vLLM, LiteLLM) to Docker service names"
+          git push origin main
