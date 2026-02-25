@@ -23,7 +23,6 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Build amd64 image
   build-amd64:
     runs-on: ubuntu-latest
     permissions:
@@ -77,12 +76,11 @@ jobs:
           context: .
           platforms: linux/amd64
           tags: ${{ steps.tags.outputs.value }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-cache:amd64
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-cache:amd64,mode=max
+          cache-from: type=gha,scope=amd64
+          cache-to: type=gha,scope=amd64,mode=max
           provenance: false
           push: true
 
-  # Build arm64 image
   build-arm64:
     runs-on: ubuntu-latest
     permissions:
@@ -136,12 +134,11 @@ jobs:
           context: .
           platforms: linux/arm64
           tags: ${{ steps.tags.outputs.value }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-cache:arm64
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-cache:arm64,mode=max
+          cache-from: type=gha,scope=arm64
+          cache-to: type=gha,scope=arm64,mode=max
           provenance: false
           push: true
 
-  # Create multi-platform manifest
   create-manifest:
     runs-on: ubuntu-latest
     permissions:
@@ -149,9 +146,6 @@ jobs:
       contents: read
     needs: [build-amd64, build-arm64]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -169,10 +163,12 @@ jobs:
           tags=()
           if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
             tags+=("${IMAGE}:main")
+            tags+=("${IMAGE}:latest")
           fi
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             version="${GITHUB_REF#refs/tags/v}"
             tags+=("${IMAGE}:${version}")
+            tags+=("${IMAGE}:latest")
           fi
           if [[ ${#tags[@]} -eq 0 ]]; then
             echo "::error::No manifest tags resolved for ref ${GITHUB_REF}"
@@ -186,6 +182,8 @@ jobs:
 
       - name: Create and push manifest
         shell: bash
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         run: |
           set -euo pipefail
           mapfile -t tags <<< "${{ steps.tags.outputs.value }}"
@@ -195,5 +193,5 @@ jobs:
             args+=("-t" "$tag")
           done
           docker buildx imagetools create "${args[@]}" \
-            ${{ needs.build-amd64.outputs.image-digest }} \
-            ${{ needs.build-arm64.outputs.image-digest }}
+            "${IMAGE}@${{ needs.build-amd64.outputs.image-digest }}" \
+            "${IMAGE}@${{ needs.build-arm64.outputs.image-digest }}"
