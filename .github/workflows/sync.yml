@@ -52,8 +52,10 @@ jobs:
             sed -i 's/localhost:8000/vllm:8000/g' "$file"
           done
 
-          # 3. LiteLLM 하드코딩 패치
-          for file in src/commands/onboard-auth.config-litellm.ts; do
+          # 3. LiteLLM 하드코딩 패치 (연결 URL + UI 안내 텍스트)
+          for file in \
+            src/commands/onboard-auth.config-litellm.ts \
+            src/commands/auth-choice.apply.api-providers.ts; do
             [ -f "$file" ] || continue
             sed -i 's/127\.0\.0\.1:4000/litellm:4000/g' "$file"
             sed -i 's/localhost:4000/litellm:4000/g' "$file"
