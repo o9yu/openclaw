@@ -1,12 +1,12 @@
-name: OpenClaw Sync
+name: OpenClaw Sync & Patch
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 매일 오전 9시(KST)
+    - cron: '0 0 * * *'  # 매일 오전 9시(KST)
   workflow_dispatch:
 
 jobs:
-  sync:
+  sync_and_patch:
     runs-on: ubuntu-latest
 
     steps:
@@ -36,6 +36,31 @@ jobs:
           git checkout main
           git merge --no-edit upstream/main
 
-      - name: Push to origin
+      - name: Patch hardcoded URLs in TypeScript source
         run: |
+          # 1. Ollama 하드코딩 패치
+          for file in src/agents/ollama-stream.ts src/commands/onboard-custom.ts; do
+            [ -f "$file" ] || continue
+            sed -i 's/127\.0\.0\.1:11434/ollama:11434/g' "$file"
+            sed -i 's/localhost:11434/ollama:11434/g' "$file"
+          done
+
+          # 2. vLLM 하드코딩 패치
+          for file in src/agents/models-config.providers.ts src/commands/vllm-setup.ts; do
+            [ -f "$file" ] || continue
+            sed -i 's/127\.0\.0\.1:8000/vllm:8000/g' "$file"
+            sed -i 's/localhost:8000/vllm:8000/g' "$file"
+          done
+
+          # 3. LiteLLM 하드코딩 패치
+          for file in src/commands/onboard-auth.config-litellm.ts; do
+            [ -f "$file" ] || continue
+            sed -i 's/127\.0\.0\.1:4000/litellm:4000/g' "$file"
+            sed -i 's/localhost:4000/litellm:4000/g' "$file"
+          done
+
+      - name: Commit and Push changes
+        run: |
+          git add -u
+          git diff --staged --quiet || git commit -m "chore: auto-patch hardcoded local URLs (Ollama, vLLM, LiteLLM)"
           git push origin main
