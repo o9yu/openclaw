@@ -116,7 +116,7 @@ export function buildGatewayConnectionDetails(
   const remote = isRemoteMode ? config.gateway?.remote : undefined;
   const tlsEnabled = config.gateway?.tls?.enabled === true;
   const localPort = resolveGatewayPort(config);
-  const bindMode = config.gateway?.bind ?? "loopback";
+  const bindMode = config.gateway?.bind ?? "lan";
   const scheme = tlsEnabled ? "wss" : "ws";
   // Self-connections should always target loopback; bind mode only controls listener exposure.
   const localUrl = `${scheme}://127.0.0.1:${localPort}`;

@@ -197,7 +197,7 @@ export async function finalizeOnboardingWizard(
 
   if (!opts.skipHealth) {
     const probeLinks = resolveControlUiLinks({
-      bind: nextConfig.gateway?.bind ?? "loopback",
+      bind: nextConfig.gateway?.bind ?? "lan",
       port: settings.port,
       customBindHost: nextConfig.gateway?.customBindHost,
       basePath: undefined,

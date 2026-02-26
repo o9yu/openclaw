@@ -51,7 +51,7 @@ async function runGatewayHealthCheck(params: {
   port: number;
 }): Promise<void> {
   const localLinks = resolveControlUiLinks({
-    bind: params.cfg.gateway?.bind ?? "loopback",
+    bind: params.cfg.gateway?.bind ?? "lan",
     port: params.port,
     customBindHost: params.cfg.gateway?.customBindHost,
     basePath: undefined,
@@ -498,7 +498,7 @@ export async function runConfigureWizard(
       runtime.error(controlUiAssets.message);
     }
 
-    const bind = nextConfig.gateway?.bind ?? "loopback";
+    const bind = nextConfig.gateway?.bind ?? "lan";
     const links = resolveControlUiLinks({
       bind,
       port: gatewayPort,

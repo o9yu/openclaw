@@ -157,7 +157,7 @@ export async function statusAllCommand(
       if (!remoteUrlMissing) {
         return connection.message;
       }
-      const bindMode = cfg.gateway?.bind ?? "loopback";
+      const bindMode = cfg.gateway?.bind ?? "lan";
       const configPath = snap?.path?.trim() ? snap.path.trim() : "(unknown config path)";
       return [
         "Gateway mode: remote",

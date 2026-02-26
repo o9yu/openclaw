@@ -170,7 +170,7 @@ export async function gatherDaemonStatus(
     ? "service args"
     : "env/config";
 
-  const bindMode = (daemonCfg.gateway?.bind ?? "loopback") as
+  const bindMode = (daemonCfg.gateway?.bind ?? "lan") as
     | "auto"
     | "lan"
     | "loopback"

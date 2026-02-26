@@ -20,7 +20,7 @@ export async function dashboardCommand(
   const snapshot = await readConfigFileSnapshot();
   const cfg = snapshot.valid ? snapshot.config : {};
   const port = resolveGatewayPort(cfg);
-  const bind = cfg.gateway?.bind ?? "loopback";
+  const bind = cfg.gateway?.bind ?? "lan";
   const basePath = cfg.gateway?.controlUi?.basePath;
   const customBindHost = cfg.gateway?.customBindHost;
   const token = cfg.gateway?.auth?.token ?? process.env.OPENCLAW_GATEWAY_TOKEN ?? "";

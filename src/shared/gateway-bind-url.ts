@@ -16,7 +16,7 @@ export function resolveGatewayBindUrl(params: {
   pickTailnetHost: () => string | null;
   pickLanHost: () => string | null;
 }): GatewayBindUrlResult {
-  const bind = params.bind ?? "loopback";
+  const bind = params.bind ?? "lan";
   if (bind === "custom") {
     const host = params.customBindHost?.trim();
     if (host) {

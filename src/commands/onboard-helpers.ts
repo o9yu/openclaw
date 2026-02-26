@@ -463,7 +463,7 @@ export function resolveControlUiLinks(params: {
   basePath?: string;
 }): { httpUrl: string; wsUrl: string } {
   const port = params.port;
-  const bind = params.bind ?? "loopback";
+  const bind = params.bind ?? "lan";
   const customBindHost = params.customBindHost?.trim();
   const tailnetIPv4 = pickPrimaryTailnetIPv4();
   const host = (() => {

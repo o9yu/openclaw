@@ -430,7 +430,7 @@ export async function applyAuthChoiceApiProviders(
         prompter: params.prompter,
         setCredential: async (apiKey) => setLitellmApiKey(apiKey, params.agentDir),
         noteMessage:
-          "LiteLLM provides a unified API to 100+ LLM providers.\nGet your API key from your LiteLLM proxy or https://litellm.ai\nDefault proxy runs on http://localhost:4000",
+          "LiteLLM provides a unified API to 100+ LLM providers.\nGet your API key from your LiteLLM proxy or https://litellm.ai\nDefault proxy runs on http://litellm:4000",
         noteTitle: "LiteLLM",
       });
       hasCredential = true;
