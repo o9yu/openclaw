@@ -34,21 +34,20 @@ jobs:
       - name: Merge upstream into main
         run: |
           git checkout main
-          # 수정된 부분: 충돌 발생 시 원본(upstream)의 코드를 무조건 우선 적용합니다.
           git merge --no-edit -X theirs upstream/main
 
       - name: Patch Source Code for Docker Environment
         run: |
           # 1. Ollama 하드코딩 패치
           for file in src/agents/ollama-stream.ts src/commands/onboard-custom.ts; do
-            [ -f "$file" ] || continue
+            [ -f "$file" ] || { echo "::warning::패치 대상 없음: $file"; continue; }
             sed -i 's/127\.0\.0\.1:11434/ollama:11434/g' "$file"
             sed -i 's/localhost:11434/ollama:11434/g' "$file"
           done
 
           # 2. vLLM 하드코딩 패치
           for file in src/agents/models-config.providers.ts src/commands/vllm-setup.ts; do
-            [ -f "$file" ] || continue
+            [ -f "$file" ] || { echo "::warning::패치 대상 없음: $file"; continue; }
             sed -i 's/127\.0\.0\.1:8000/vllm:8000/g' "$file"
             sed -i 's/localhost:8000/vllm:8000/g' "$file"
           done
@@ -57,19 +56,35 @@ jobs:
           for file in \
             src/commands/onboard-auth.config-litellm.ts \
             src/commands/auth-choice.apply.api-providers.ts; do
-            [ -f "$file" ] || continue
+            [ -f "$file" ] || { echo "::warning::패치 대상 없음: $file"; continue; }
             sed -i 's/127\.0\.0\.1:4000/litellm:4000/g' "$file"
             sed -i 's/localhost:4000/litellm:4000/g' "$file"
           done
 
           # 4. 기본 접속 정책을 loopback → lan으로 패치
-          grep -rl '\.bind ?? "loopback"' src/ 2>/dev/null | while read -r file; do
-            sed -i 's/\.bind ?? "loopback"/.bind ?? "lan"/g' "$file"
-          done
+          FILES=$(grep -rl '\.bind ?? "loopback"' src/ 2>/dev/null)
+          if [ -z "$FILES" ]; then
+            echo "::warning::bind 패치 대상 파일을 찾지 못했습니다. 패턴이 변경됐을 수 있습니다."
+          else
+            echo "$FILES" | while read -r file; do
+              sed -i 's/\.bind ?? "loopback"/.bind ?? "lan"/g' "$file"
+            done
+          fi
+
+          # 5. Dockerfile 패치 (jq 설치 및 브라우저 자동화 기본 활성화)
+          if [ -f "Dockerfile" ]; then
+            grep -q 'OPENCLAW_DOCKER_APT_PACKAGES' Dockerfile \
+              || echo "::warning::Dockerfile에 OPENCLAW_DOCKER_APT_PACKAGES ARG가 없습니다."
+            grep -q 'OPENCLAW_INSTALL_BROWSER' Dockerfile \
+              || echo "::warning::Dockerfile에 OPENCLAW_INSTALL_BROWSER ARG가 없습니다."
+            sed -i 's/ARG OPENCLAW_DOCKER_APT_PACKAGES=""/ARG OPENCLAW_DOCKER_APT_PACKAGES="jq"/g' Dockerfile
+            sed -i 's/ARG OPENCLAW_INSTALL_BROWSER=""/ARG OPENCLAW_INSTALL_BROWSER="1"/g' Dockerfile
+          else
+            echo "::warning::Dockerfile이 존재하지 않습니다."
+          fi
 
       - name: Commit and Push changes
         run: |
           git add -u
-          git diff --staged --quiet || git commit -m "chore: auto-patch for docker (internal URLs & bind policy)"
+          git diff --staged --quiet || git commit -m "chore: auto-patch for docker (internal URLs, bind policy, jq, and browser)"
           git push origin main
-          
