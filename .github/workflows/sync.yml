@@ -1,4 +1,4 @@
-name: OpenClaw Sync & Patch
+Name: OpenClaw Sync & Patch
 
 on:
   schedule:
@@ -34,7 +34,8 @@ jobs:
       - name: Merge upstream into main
         run: |
           git checkout main
-          git merge --no-edit upstream/main
+          # 수정된 부분: 충돌 발생 시 원본(upstream)의 코드를 무조건 우선 적용합니다.
+          git merge --no-edit -X theirs upstream/main
 
       - name: Patch Source Code for Docker Environment
         run: |
@@ -62,7 +63,6 @@ jobs:
           done
 
           # 4. 기본 접속 정책을 loopback → lan으로 패치
-          # grep으로 실제 파일을 찾아서 패치 (파일 경로가 버전마다 달라질 수 있음)
           grep -rl '\.bind ?? "loopback"' src/ 2>/dev/null | while read -r file; do
             sed -i 's/\.bind ?? "loopback"/.bind ?? "lan"/g' "$file"
           done
