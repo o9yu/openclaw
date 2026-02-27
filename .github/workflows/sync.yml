@@ -71,11 +71,12 @@ jobs:
             done
           fi
 
-          # 5. Dockerfile 패치 (grep -q 도 안전하게 처리)
+          # 5. Dockerfile 패치 (jq, pup 설치 및 브라우저 자동화 기본 활성화)
           if [ -f "Dockerfile" ]; then
             grep -q 'OPENCLAW_DOCKER_APT_PACKAGES' Dockerfile || echo "::warning::OPENCLAW_DOCKER_APT_PACKAGES ARG 없음"
             grep -q 'OPENCLAW_INSTALL_BROWSER' Dockerfile || echo "::warning::OPENCLAW_INSTALL_BROWSER ARG 없음"
-            sed -i 's/ARG OPENCLAW_DOCKER_APT_PACKAGES=""/ARG OPENCLAW_DOCKER_APT_PACKAGES="jq"/g' Dockerfile
+            # jq와 pup을 동시에 설치하도록 수정
+            sed -i 's/ARG OPENCLAW_DOCKER_APT_PACKAGES=""/ARG OPENCLAW_DOCKER_APT_PACKAGES="jq pup"/g' Dockerfile
             sed -i 's/ARG OPENCLAW_INSTALL_BROWSER=""/ARG OPENCLAW_INSTALL_BROWSER="1"/g' Dockerfile
           else
             echo "::warning::Dockerfile이 존재하지 않습니다."
@@ -84,5 +85,5 @@ jobs:
       - name: Commit and Push changes
         run: |
           git add -u
-          git diff --staged --quiet || git commit -m "chore: auto-patch for docker (internal URLs, bind policy, jq, and browser)"
+          git diff --staged --quiet || git commit -m "chore: auto-patch for docker (internal URLs, bind policy, jq, pup, and browser)"
           git push origin main
