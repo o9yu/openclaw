@@ -61,8 +61,8 @@ jobs:
             sed -i 's/localhost:4000/litellm:4000/g' "$file"
           done
 
-          # 4. 기본 접속 정책을 loopback → lan으로 패치
-          FILES=$(grep -rl '\.bind ?? "loopback"' src/ 2>/dev/null)
+          # 4. 기본 접속 정책 패치 (|| true 추가하여 결과 없을 시 중단 방지)
+          FILES=$(grep -rl '\.bind ?? "loopback"' src/ 2>/dev/null || true)
           if [ -z "$FILES" ]; then
             echo "::warning::bind 패치 대상 파일을 찾지 못했습니다. 패턴이 변경됐을 수 있습니다."
           else
@@ -71,12 +71,10 @@ jobs:
             done
           fi
 
-          # 5. Dockerfile 패치 (jq 설치 및 브라우저 자동화 기본 활성화)
+          # 5. Dockerfile 패치 (grep -q 도 안전하게 처리)
           if [ -f "Dockerfile" ]; then
-            grep -q 'OPENCLAW_DOCKER_APT_PACKAGES' Dockerfile \
-              || echo "::warning::Dockerfile에 OPENCLAW_DOCKER_APT_PACKAGES ARG가 없습니다."
-            grep -q 'OPENCLAW_INSTALL_BROWSER' Dockerfile \
-              || echo "::warning::Dockerfile에 OPENCLAW_INSTALL_BROWSER ARG가 없습니다."
+            grep -q 'OPENCLAW_DOCKER_APT_PACKAGES' Dockerfile || echo "::warning::OPENCLAW_DOCKER_APT_PACKAGES ARG 없음"
+            grep -q 'OPENCLAW_INSTALL_BROWSER' Dockerfile || echo "::warning::OPENCLAW_INSTALL_BROWSER ARG 없음"
             sed -i 's/ARG OPENCLAW_DOCKER_APT_PACKAGES=""/ARG OPENCLAW_DOCKER_APT_PACKAGES="jq"/g' Dockerfile
             sed -i 's/ARG OPENCLAW_INSTALL_BROWSER=""/ARG OPENCLAW_INSTALL_BROWSER="1"/g' Dockerfile
           else
