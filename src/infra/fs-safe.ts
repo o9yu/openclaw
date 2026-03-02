@@ -2,8 +2,10 @@ import type { Stats } from "node:fs";
 import { constants as fsConstants } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { sameFileIdentity } from "./file-identity.js";
+import { expandHomePrefix } from "./home-dir.js";
 import { assertNoPathAliasEscape } from "./path-alias-guards.js";
 import { isNotFoundPathError, isPathInside, isSymlinkOpenError } from "./path-guards.js";
 
@@ -47,6 +49,16 @@ const OPEN_WRITE_FLAGS =
   (SUPPORTS_NOFOLLOW ? fsConstants.O_NOFOLLOW : 0);
 
 const ensureTrailingSep = (value: string) => (value.endsWith(path.sep) ? value : value + path.sep);
+
+async function expandRelativePathWithHome(relativePath: string): Promise<string> {
+  let home = process.env.HOME || process.env.USERPROFILE || os.homedir();
+  try {
+    home = await fs.realpath(home);
+  } catch {
+    // If the home dir cannot be canonicalized, keep lexical expansion behavior.
+  }
+  return expandHomePrefix(relativePath, { home });
+}
 
 async function openVerifiedLocalFile(
   filePath: string,
@@ -119,7 +131,8 @@ export async function openFileWithinRoot(params: {
     throw err;
   }
   const rootWithSep = ensureTrailingSep(rootReal);
-  const resolved = path.resolve(rootWithSep, params.relativePath);
+  const expanded = await expandRelativePathWithHome(params.relativePath);
+  const resolved = path.resolve(rootWithSep, expanded);
   if (!isPathInside(rootWithSep, resolved)) {
     throw new SafeOpenError("outside-workspace", "file is outside workspace root");
   }
@@ -150,6 +163,71 @@ export async function openFileWithinRoot(params: {
   }
 
   return opened;
+}
+
+export async function readFileWithinRoot(params: {
+  rootDir: string;
+  relativePath: string;
+  rejectHardlinks?: boolean;
+  maxBytes?: number;
+}): Promise<SafeLocalReadResult> {
+  const opened = await openFileWithinRoot({
+    rootDir: params.rootDir,
+    relativePath: params.relativePath,
+    rejectHardlinks: params.rejectHardlinks,
+  });
+  try {
+    if (params.maxBytes !== undefined && opened.stat.size > params.maxBytes) {
+      throw new SafeOpenError(
+        "too-large",
+        `file exceeds limit of ${params.maxBytes} bytes (got ${opened.stat.size})`,
+      );
+    }
+    const buffer = await opened.handle.readFile();
+    return {
+      buffer,
+      realPath: opened.realPath,
+      stat: opened.stat,
+    };
+  } finally {
+    await opened.handle.close().catch(() => {});
+  }
+}
+
+export async function readPathWithinRoot(params: {
+  rootDir: string;
+  filePath: string;
+  rejectHardlinks?: boolean;
+  maxBytes?: number;
+}): Promise<SafeLocalReadResult> {
+  const rootDir = path.resolve(params.rootDir);
+  const candidatePath = path.isAbsolute(params.filePath)
+    ? path.resolve(params.filePath)
+    : path.resolve(rootDir, params.filePath);
+  const relativePath = path.relative(rootDir, candidatePath);
+  return await readFileWithinRoot({
+    rootDir,
+    relativePath,
+    rejectHardlinks: params.rejectHardlinks,
+    maxBytes: params.maxBytes,
+  });
+}
+
+export function createRootScopedReadFile(params: {
+  rootDir: string;
+  rejectHardlinks?: boolean;
+  maxBytes?: number;
+}): (filePath: string) => Promise<Buffer> {
+  const rootDir = path.resolve(params.rootDir);
+  return async (filePath: string) => {
+    const safeRead = await readPathWithinRoot({
+      rootDir,
+      filePath,
+      rejectHardlinks: params.rejectHardlinks,
+      maxBytes: params.maxBytes,
+    });
+    return safeRead.buffer;
+  };
 }
 
 export async function readLocalFileSafely(params: {
@@ -188,7 +266,8 @@ export async function writeFileWithinRoot(params: {
     throw err;
   }
   const rootWithSep = ensureTrailingSep(rootReal);
-  const resolved = path.resolve(rootWithSep, params.relativePath);
+  const expanded = await expandRelativePathWithHome(params.relativePath);
+  const resolved = path.resolve(rootWithSep, expanded);
   if (!isPathInside(rootWithSep, resolved)) {
     throw new SafeOpenError("outside-workspace", "file is outside workspace root");
   }
