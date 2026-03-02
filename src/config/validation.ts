@@ -86,7 +86,7 @@ function validateGatewayTailscaleBind(config: OpenClawConfig): ConfigValidationI
   if (tailscaleMode !== "serve" && tailscaleMode !== "funnel") {
     return [];
   }
-  const bindMode = config.gateway?.bind ?? "loopback";
+  const bindMode = config.gateway?.bind ?? "lan";
   if (bindMode === "loopback") {
     return [];
   }
