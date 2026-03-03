@@ -1,0 +1,42 @@
+name: OpenClaw Docker Patch
+
+on:
+  workflow_run:
+    workflows: ["OpenClaw Sync"]
+    types:
+      - completed
+
+jobs:
+  docker_patch:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout fork (main)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          fetch-depth: 0
+          ref: main
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Patch Dockerfile
+        run: |
+          if [ ! -f "Dockerfile" ]; then
+            echo "::error::Dockerfile이 존재하지 않습니다."
+            exit 1
+          fi
+          grep -q 'OPENCLAW_DOCKER_APT_PACKAGES' Dockerfile || echo "::warning::OPENCLAW_DOCKER_APT_PACKAGES ARG 없음"
+          grep -q 'OPENCLAW_INSTALL_BROWSER' Dockerfile || echo "::warning::OPENCLAW_INSTALL_BROWSER ARG 없음"
+          sed -i 's/ARG OPENCLAW_DOCKER_APT_PACKAGES=""/ARG OPENCLAW_DOCKER_APT_PACKAGES="jq pup"/g' Dockerfile
+          sed -i 's/ARG OPENCLAW_INSTALL_BROWSER=""/ARG OPENCLAW_INSTALL_BROWSER="1"/g' Dockerfile
+
+      - name: Commit and Push changes
+        run: |
+          git add Dockerfile
+          git diff --staged --quiet || git commit -m "chore: auto-patch Dockerfile (jq, pup, browser)"
+          git push origin main
