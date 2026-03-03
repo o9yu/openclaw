@@ -32,8 +32,15 @@ jobs:
           fi
           grep -q 'OPENCLAW_DOCKER_APT_PACKAGES' Dockerfile || echo "::warning::OPENCLAW_DOCKER_APT_PACKAGES ARG 없음"
           grep -q 'OPENCLAW_INSTALL_BROWSER' Dockerfile || echo "::warning::OPENCLAW_INSTALL_BROWSER ARG 없음"
-          sed -i 's/ARG OPENCLAW_DOCKER_APT_PACKAGES=""/ARG OPENCLAW_DOCKER_APT_PACKAGES="jq pup"/g' Dockerfile
+
+          # jq apt 설치
+          sed -i 's/ARG OPENCLAW_DOCKER_APT_PACKAGES=""/ARG OPENCLAW_DOCKER_APT_PACKAGES="jq"/g' Dockerfile
           sed -i 's/ARG OPENCLAW_INSTALL_BROWSER=""/ARG OPENCLAW_INSTALL_BROWSER="1"/g' Dockerfile
+
+          # pup은 apt에 없으므로 GitHub 릴리즈 바이너리로 설치하는 RUN 스텝 삽입
+          if ! grep -q 'pup_v0.4.0' Dockerfile; then
+            awk 'done==0 && /ARG OPENCLAW_INSTALL_BROWSER/{print; print "RUN apt-get update && apt-get install -y --no-install-recommends unzip && ARCH=$(dpkg --print-architecture) && curl -fsSL https://github.com/ericchiang/pup/releases/download/v0.4.0/pup_v0.4.0_linux_${ARCH}.zip -o /tmp/pup.zip && unzip -q /tmp/pup.zip pup -d /usr/local/bin && chmod +x /usr/local/bin/pup && rm /tmp/pup.zip && apt-get remove -y unzip && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*"; done=1; next}1' Dockerfile > Dockerfile.tmp && mv Dockerfile.tmp Dockerfile
+          fi
 
       - name: Commit and Push changes
         run: |
