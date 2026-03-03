@@ -46,6 +46,7 @@ RUN NODE_OPTIONS=--max-old-space-size=2048 pnpm install --frozen-lockfile
 # Must run after pnpm install so playwright-core is available in node_modules.
 USER root
 ARG OPENCLAW_INSTALL_BROWSER="1"
+RUN apt-get update && apt-get install -y --no-install-recommends unzip && ARCH=$(dpkg --print-architecture) && curl -fsSL https://github.com/ericchiang/pup/releases/download/v0.4.0/pup_v0.4.0_linux_${ARCH}.zip -o /tmp/pup.zip && unzip -q /tmp/pup.zip pup -d /usr/local/bin && chmod +x /usr/local/bin/pup && rm /tmp/pup.zip && apt-get remove -y unzip && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 RUN if [ -n "$OPENCLAW_INSTALL_BROWSER" ]; then \
       apt-get update && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xvfb && \
