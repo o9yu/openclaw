@@ -1,3 +1,4 @@
+import { consumeRootOptionToken, isValueToken } from "../../infra/cli-root-options.js";
 import { defaultRuntime } from "../../runtime.js";
 import { getFlagValue, getPositiveIntFlagValue, getVerboseFlag, hasFlag } from "../argv.js";
 
@@ -9,9 +10,9 @@ export type RouteSpec = {
 
 const routeHealth: RouteSpec = {
   match: (path) => path[0] === "health",
-  // Health output uses channel plugin metadata for account fallback/log details.
-  // Keep routed behavior aligned with non-routed command execution.
-  loadPlugins: true,
+  // `health --json` only relays gateway RPC output and does not need local plugin metadata.
+  // Keep plugin preload for text output where channel diagnostics/logSelfId are rendered.
+  loadPlugins: (argv) => !hasFlag(argv, "--json"),
   run: async (argv) => {
     const json = hasFlag(argv, "--json");
     const verbose = getVerboseFlag(argv, { includeDebug: true });
@@ -102,13 +103,23 @@ const routeMemoryStatus: RouteSpec = {
 function getCommandPositionals(argv: string[]): string[] {
   const out: string[] = [];
   const args = argv.slice(2);
-  for (const arg of args) {
+  let commandStarted = false;
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
     if (!arg || arg === "--") {
       break;
+    }
+    if (!commandStarted) {
+      const consumed = consumeRootOptionToken(args, i);
+      if (consumed > 0) {
+        i += consumed - 1;
+        continue;
+      }
     }
     if (arg.startsWith("-")) {
       continue;
     }
+    commandStarted = true;
     out.push(arg);
   }
   return out;
@@ -124,7 +135,7 @@ function getFlagValues(argv: string[], name: string): string[] | null {
     }
     if (arg === name) {
       const next = args[i + 1];
-      if (!next || next === "--" || next.startsWith("-")) {
+      if (!isValueToken(next)) {
         return null;
       }
       values.push(next);

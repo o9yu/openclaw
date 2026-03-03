@@ -641,9 +641,9 @@ const ERROR_PATTERNS = {
     "deadline exceeded",
     "context deadline exceeded",
     /without sending (?:any )?chunks?/i,
-    /\bstop reason:\s*abort\b/i,
-    /\breason:\s*abort\b/i,
-    /\bunhandled stop reason:\s*abort\b/i,
+    /\bstop reason:\s*(?:abort|error)\b/i,
+    /\breason:\s*(?:abort|error)\b/i,
+    /\bunhandled stop reason:\s*(?:abort|error)\b/i,
   ],
   billing: [
     /["']?(?:status|code)["']?\s*[:=]\s*402\b|\bhttp\s*402\b|\berror(?:\s+code)?\s*[:=]?\s*402\b|\b(?:got|returned|received)\s+(?:a\s+)?402\b|^\s*402\s+payment/i,
@@ -660,6 +660,8 @@ const ERROR_PATTERNS = {
     "key has been revoked",
     "account has been deactivated",
     /could not (?:authenticate|validate).*(?:api[_ ]?key|credentials)/i,
+    "permission_error",
+    "not allowed for this organization",
   ],
   auth: [
     /invalid[_ ]?api[_ ]?key/,
@@ -883,12 +885,36 @@ export function isModelNotFoundErrorMessage(raw: string): boolean {
   return false;
 }
 
+function isCliSessionExpiredErrorMessage(raw: string): boolean {
+  if (!raw) {
+    return false;
+  }
+  const lower = raw.toLowerCase();
+  return (
+    lower.includes("session not found") ||
+    lower.includes("session does not exist") ||
+    lower.includes("session expired") ||
+    lower.includes("session invalid") ||
+    lower.includes("conversation not found") ||
+    lower.includes("conversation does not exist") ||
+    lower.includes("conversation expired") ||
+    lower.includes("conversation invalid") ||
+    lower.includes("no such session") ||
+    lower.includes("invalid session") ||
+    lower.includes("session id not found") ||
+    lower.includes("conversation id not found")
+  );
+}
+
 export function classifyFailoverReason(raw: string): FailoverReason | null {
   if (isImageDimensionErrorMessage(raw)) {
     return null;
   }
   if (isImageSizeError(raw)) {
     return null;
+  }
+  if (isCliSessionExpiredErrorMessage(raw)) {
+    return "session_expired";
   }
   if (isModelNotFoundErrorMessage(raw)) {
     return "model_not_found";
